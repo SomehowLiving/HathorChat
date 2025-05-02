@@ -1,0 +1,13 @@
+{
+  "networkIdentifier": "testnet",
+  "api": {
+    "port": 8080,
+    "host": "0.0.0.0"
+  },
+  "seeds": {
+    "default": {
+      "language": "english",
+      "seed": "deny evidence water fitness machine water under ecology draft tumble degree food"
+    }
+  }
+}
