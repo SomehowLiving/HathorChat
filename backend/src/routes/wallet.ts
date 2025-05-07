@@ -1,75 +1,169 @@
-import { Router, Request, Response } from 'express';
+import { Router } from 'express';
 import axios from 'axios';
-import * as bip39 from 'bip39';
-import CryptoJS from 'crypto-js';
 import { v4 as uuidv4 } from 'uuid';
-import dotenv from 'dotenv';
-
-dotenv.config();
 
 const router = Router();
-const HEADLESS_BASE = process.env.HEADLESS_BASE || 'http://localhost:8080';
-const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY!;
+const WALLET_API = 'http://localhost:8000'; // or docker IP if needed
 
-// 1) Create Wallet
-router.post('/createWallet', async (req: Request, res: Response) => {
+// ✅ Create Wallet
+router.post('/createWallet', async (req, res) => {
   try {
-    const seedPhrase = bip39.generateMnemonic();
     const walletId = uuidv4();
+    const seed = req.body.seed || process.env.DEFAULT_SEED;
 
-    await axios.post(`${HEADLESS_BASE}/start`, {
+    const response = await axios.post(`${WALLET_API}/start`, {
       "wallet-id": walletId,
-      seed: seedPhrase,
+      seed,
       passphrase: ""
     });
 
-    const encryptedSeed = CryptoJS.AES.encrypt(seedPhrase, ENCRYPTION_KEY).toString();
-
-    const addressResp = await axios.get(`${HEADLESS_BASE}/wallet/balance/${walletId}`);
-    const address = addressResp.data.addresses[0];
-
-    return res.json({ walletId, address, encryptedSeed });
-  } catch (err) {
-    console.error('[createWallet] Error:', err);
-    return res.status(500).json({ error: 'Wallet creation failed' });
+    if (response.data.success) {
+      res.json({ walletId, success: true });
+    } else {
+      res.status(400).json({ success: false, message: response.data.message });
+    }
+  } catch (err: any) {
+    console.error('❌ Error in /createWallet:', err.message);
+    res.status(500).json({ success: false, error: err.message });
   }
 });
 
-// 2) Get Balance
-router.get('/balance/:walletId', async (req, res) => {
+// ✅ Get Wallet Status
+router.get('/wallet/:id/status', async (req, res) => {
+  const walletId = req.params.id;
   try {
-    const { walletId } = req.params;
-    const response = await axios.get(`${HEADLESS_BASE}/wallet/balance/${walletId}`);
-    return res.json(response.data);
-  } catch (err) {
-    console.error('[balance] Error:', err);
-    return res.status(500).json({ error: 'Failed to fetch balance' });
+    const response = await axios.get(`${WALLET_API}/wallet/status`, {
+      headers: { 'X-Wallet-Id': walletId }
+    });
+    res.json(response.data);
+  } catch (err: any) {
+    console.error('❌ Status Error:', err.message);
+    res.status(500).json({ success: false, error: err.message });
   }
 });
 
-// 3) Tip / Send Transaction
-router.post('/tip', async (req: Request, res: Response) => {
+// ✅ Get Balance
+router.get('/wallet/:id/balance', async (req, res) => {
+  const walletId = req.params.id;
   try {
-    const { walletId, recipientAddress, amount } = req.body;
+    const response = await axios.get(`${WALLET_API}/wallet/balance`, {
+      headers: { 'X-Wallet-Id': walletId }
+    });
+    res.json(response.data);
+  } catch (err: any) {
+    console.error('❌ Balance Error:', err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
 
-    const txBody = {
-      outputs: [
-        {
-          address: recipientAddress,
-          value: amount
-        }
-      ]
-    };
+// ✅ Get Balance
+router.get('/wallet/:id/balance', async (req, res) => {
+  const walletId = req.params.id;
+  try {
+    const response = await axios.get(`${WALLET_API}/wallet/balances`, {
+      headers: { 'X-Wallet-Id': walletId }
+    });
+    res.json(response.data);
+  } catch (err: any) {
+    console.error('❌ Balance Error:', err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
 
-    const tx = await axios.post(`${HEADLESS_BASE}/transaction/send`, txBody, {
-      params: { key: walletId }
+// ✅ Get Current Wallet Address
+router.get('/wallet/:id/address', async (req, res) => {
+  const walletId = req.params.id;
+  try {
+    const response = await axios.get(`${WALLET_API}/wallet/address`, {
+      headers: { 'X-Wallet-Id': walletId }
+    });
+    res.json(response.data);
+  } catch (err: any) {
+    console.error('❌ Address Error:', err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+router.post('/wallet/:id/send', async (req, res) => {
+  const walletId = req.params.id;
+  const { address, value, token = '00' } = req.body; // "00" = HTR
+
+  try {
+    const response = await axios.post(`${WALLET_API}/wallet/send-tx`, {
+      address,
+      value,
+      token
+    }, {
+      headers: { 'X-Wallet-Id': walletId }
     });
 
-    return res.json({ tx_id: tx.data.tx_id, status: 'success' });
-  } catch (err) {
-    console.error('[tip] Error:', err);
-    return res.status(500).json({ error: 'Tip failed' });
+    if (response.status === 200 && response.data.success !== false) {
+      res.json(response.data);
+    } else {
+      res.status(400).json({
+        success: false,
+        message: response.data?.message || 'Failed to send transaction'
+      });
+    }
+  } catch (err: any) {
+    console.error('❌ Send Error:', err.response?.data || err.message);
+    res.status(500).json({ success: false, error: err.response?.data?.message || err.message });
   }
 });
 
+router.get('/wallet/:id/transactions', async (req, res) => {
+  const walletId = req.params.id;
+
+  try {
+    const response = await axios.get(`${WALLET_API}/wallet/history`, {
+      headers: { 'X-Wallet-Id': walletId }
+    });
+
+    res.json(response.data);
+  } catch (err: any) {
+    console.error('❌ History Error:', err.response?.data || err.message);
+    res.status(500).json({ success: false, error: err.response?.data?.message || err.message });
+  }
+});
+
+
+// // ✅ Send Tokens (HTR for now)
+// router.post('/wallet/:id/send', async (req, res) => {
+//   const walletId = req.params.id;
+//   const { address, value, token = '00' } = req.body; // "00" is HTR
+
+//   try {
+//     const response = await axios.post(`${WALLET_API}/wallet/send-tx`, {
+//       address,
+//       value,
+//       token
+//     }, {
+//       headers: { 'X-Wallet-Id': walletId }
+//     });
+
+//     res.json(response.data);
+//   } catch (err: any) {
+//     console.error('❌ Send Error:', err.message);
+//     res.status(500).json({ success: false, error: err.message });
+//   }
+// });
+
+// // ✅ Transaction History
+// router.get('/wallet/:id/history', async (req, res) => {
+//   const walletId = req.params.id;
+//   try {
+//     const response = await axios.get(`${WALLET_API}/wallet/transactions`, {
+//       headers: { 'X-Wallet-Id': walletId }
+//     });
+
+//     res.json(response.data);
+//   } catch (err: any) {
+//     console.error('❌ History Error:', err.message);
+//     res.status(500).json({ success: false, error: err.message });
+//   }
+// });
+
 export default router;
+
+
+
