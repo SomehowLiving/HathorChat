@@ -112,9 +112,12 @@ bot.command('wallet', async (ctx) => {
   const walletId = res.data.walletId;
   ctx.reply(`🪪 Wallet created!\n\n🧾 Wallet ID: ${walletId}`);
 
-    
+const addressRes = await axios.get(`${API_BASE}/wallet/${walletId}/address`);
+const address = addressRes.data.address;
 
-    ctx.reply(`🪪 Wallet created!\n\n📬 Address: ${wallet.address}`);
+ctx.reply(`📬 Your wallet address: ${address}`);
+
+    // ctx.reply(`🪪 Wallet created!\n\n📬 Address: ${wallet.address}`);
   } catch (err) {
     console.error(err);
     ctx.reply('❌ Could not create your wallet.');
