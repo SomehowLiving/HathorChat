@@ -1,0 +1,6 @@
+https://telegram.org/blog/fullscreen-miniapps-and-more#full-screen-mode
+
+https://core.telegram.org/bots/webapps#initializing-mini-apps
+
+https://core.telegram.org/bots/webapps#securestorage
+

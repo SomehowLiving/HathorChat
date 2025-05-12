@@ -1,0 +1,119 @@
+import express from 'express';
+import cors from 'cors';
+import dotenv from 'dotenv';
+
+dotenv.config();
+const app = express();
+const PORT = process.env.PORT || 5000;
+
+app.use(cors());
+app.use(express.json());
+
+// ➕ POST /api/tip
+app.post('/api/tip', async (req, res) => {
+  const { senderTelegramId, recipientTelegramId, amount, tokenSymbol } = req.body;
+
+  // ✅ Basic validation
+  if (!senderTelegramId || !recipientTelegramId || !amount || !tokenSymbol) {
+    return res.status(400).json({ success: false, message: 'Missing required fields' });
+  }
+
+  // 📦 Mock wallet lookup (replace with real DB later)
+  const senderWallet = { address: 'sender-address-HTR', privateKey: 'abc123' };
+  const recipientWallet = { address: 'recipient-address-HTR' };
+
+  // 🔁 Simulate Hathor API call (mock for now)
+  console.log(`Tipping ${amount} ${tokenSymbol} from ${senderWallet.address} to ${recipientWallet.address}`);
+
+  // 📤 Respond to bot
+  return res.json({ success: true, message: 'Tip sent successfully' });
+});
+
+// POST /api/wallet
+// Create and return a new wallet for a user (mocked for now):
+
+app.post('/api/wallet', (req, res) => {
+  const { telegramId } = req.body;
+  if (!telegramId) {
+    return res.status(400).json({ success: false, message: 'Missing Telegram ID' });
+  }
+
+  // Mock: generate a dummy wallet address and key
+  const wallet = {
+    address: `wallet-${telegramId}`,
+    publicKey: `pub-${telegramId}`,
+    encryptedPrivateKey: `encrypted-${telegramId}`
+  };
+
+  // Later: Store in DB securely
+  console.log(`📥 Wallet created for ${telegramId}:`, wallet);
+
+  return res.json({ success: true, wallet });
+});
+
+
+// GET /api/balance/:telegramId
+// Simulate balance fetch:
+app.get('/api/balance/:telegramId', (req, res) => {
+  const { telegramId } = req.params;
+
+  // Mock balances
+  const balances = {
+    HTR: 100,
+    VIBE: 50,
+    COFFEE: 0
+  };
+
+  console.log(`💰 Balance lookup for ${telegramId}`);
+  return res.json({ success: true, balances });
+});
+
+
+POST /api/create-token
+Simulate token minting:
+app.post('/api/create-token', (req, res) => {
+  const { telegramId, name, symbol, supply } = req.body;
+
+  if (!telegramId || !name || !symbol || !supply) {
+    return res.status(400).json({ success: false, message: 'Missing token data' });
+  }
+
+  // Mock token creation
+  const token = {
+    name,
+    symbol,
+    supply,
+    tokenId: `token-${symbol}-${Date.now()}`
+  };
+
+  console.log(`🔨 Created token ${symbol} for user ${telegramId}`, token);
+  return res.json({ success: true, token });
+});
+
+
+// ✅ Default route
+app.get('/', (req, res) => {
+  res.send('HathorChat backend is alive 🚀');
+});
+
+// ✅ Start server
+app.listen(PORT, () => {
+  console.log(`🧠 Backend API running on http://localhost:${PORT}`);
+});
+
+
+
+// Note:
+// make sure
+const bot = new Telegraf(process.env.BOT_TOKEN);
+const API_BASE = process.env.API_BASE || 'http://localhost:5000/api';
+
+ // run backend then restrt ur bot
+In Telegram, try:
+/tip @anyusername 10 VIBE
+You should see:
+🎉 Tipped 10 VIBE to @anyusername!
+And in your backend logs:
+
+Tipping 10 VIBE from sender-address-HTR to recipient-address-HTR
+
